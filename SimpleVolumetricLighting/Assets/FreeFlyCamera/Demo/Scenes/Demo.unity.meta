@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 76846e8e140c969489cb8cecd8dfa198
+timeCreated: 1550898786
+licenseType: Store
+DefaultImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 140739
+  packageName: Free Fly Camera
+  packageVersion: 1.2
+  assetPath: Assets/FreeFlyCamera/Demo/Scenes/Demo.unity
+  uploadId: 396755

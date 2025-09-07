@@ -1,0 +1,110 @@
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+struct SpotLightParameters
+{
+    float3 position;
+    float3 direction;
+    float range;
+    float3 color;
+    float innerCos;
+    float outerCos;
+};
+StructuredBuffer<SpotLightParameters> _SpotLightParameters;
+
+RWTexture3D<half4> _LightInjectionTexture;
+RWTexture3D<half4> _LightScatteringTexture;
+
+Texture2D<float> _AdditionalShadowsTexture;
+SamplerComparisonState sampler_AdditionalShadowsTexture;
+
+int _SpotLightCount;
+float _NearClipPlane;
+float _FarClipPlane;
+float3 _Resolution;
+float4 _FrustumRays[4];
+float4x4 _AdditionalLightsWorldToShadow[256];
+
+float3 FrustumRay(float2 positionUV, float4 frustumRays[4])
+{
+    float3 ray0 = lerp(frustumRays[1].xyz, frustumRays[2].xyz, positionUV.x);
+    float3 ray1 = lerp(frustumRays[0].xyz, frustumRays[3].xyz, positionUV.x);
+    return lerp(ray0, ray1, positionUV.y);
+}
+
+float3 SpotLights(float3 voxelPosition)
+{
+    float3 color = 0;
+    for (int i = 0; i < _SpotLightCount; i++)
+    {
+        SpotLightParameters light = _SpotLightParameters[i];
+        float3 toLight = light.position - voxelPosition;
+        float distance = dot(toLight, toLight);
+        float attenuation = 1.0 / pow(1.0 + sqrt(distance) / 0.25, 2.5);
+        
+        float3 L = normalize(toLight);
+        float3 D = normalize(light.direction);
+        float cosTheta = dot(-L, D);
+        float spotAttenuation = saturate((cosTheta - light.outerCos) / (light.innerCos - light.outerCos));
+        
+        //TODO: Other Lights Shadow
+        float4 shadowCoord = mul(_AdditionalLightsWorldToShadow[i], float4(voxelPosition, 1.0));
+        float shadow = _AdditionalShadowsTexture.SampleCmpLevelZero(sampler_AdditionalShadowsTexture, shadowCoord.xy / shadowCoord.w, shadowCoord.z / shadowCoord.w);
+
+        color += light.color * attenuation * spotAttenuation * shadow;
+    }
+    return color;
+}
+
+#pragma kernel LightInjection
+[numthreads(16,2,16)]
+void LightInjection(uint3 id : SV_DispatchThreadID)
+{
+    float3 color = 0;
+    float2 positionUV = id.xy / (_Resolution.xy - 1);
+    positionUV.y = 1.0 - positionUV.y;
+    
+    float z = id.z / (_Resolution.z - 1);
+    float nearOverFarClip = _NearClipPlane / _FarClipPlane;
+    z = nearOverFarClip + z * (1 - nearOverFarClip);
+    float3 voxelPosition = FrustumRay(positionUV, _FrustumRays) * z + _WorldSpaceCameraPos;
+    
+    color += SpotLights(voxelPosition);
+    
+    // TODO: Calculate Density
+    float density = 1;
+    float intensity = 100;
+    float4 result;
+    result.rgb = color * density * intensity;
+    result.a = density;
+
+    _LightInjectionTexture[id] = result;
+}
+
+float4 ScatterStep(float3 accumulatedLight, float accumulatedTransmittance, float3 sliceLight, float sliceDensity)
+{
+    // TODO: Create LUT
+    sliceDensity = max(sliceDensity, 1e-6);
+    float sliceTransmittance = exp(-sliceDensity / _Resolution.z);
+    float3 sliceScatteredLight = sliceLight * (1.0 - sliceTransmittance) / sliceDensity;
+    accumulatedLight += sliceScatteredLight * accumulatedTransmittance;
+    accumulatedTransmittance *= sliceTransmittance;
+    return float4(accumulatedLight, accumulatedTransmittance);
+}
+
+#pragma kernel LightScattering
+[numthreads(32, 2, 1)]
+void LightScattering(uint3 id : SV_DispatchThreadID)
+{
+    float4 accumulation = float4(0, 0, 0, 1);
+    int3 position = int3(id.xy, 0);
+    int steps = _Resolution.z;
+    
+    // Serial Computation is Too Slow
+    for (int z = 0; z < steps; z++)
+    {
+        position.z = z;
+        float4 slice = _LightInjectionTexture[position];
+        accumulation = ScatterStep(accumulation.rgb, accumulation.a, slice.rgb, slice.a);
+        _LightScatteringTexture[position] = accumulation;
+    }
+}

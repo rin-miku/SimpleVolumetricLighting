@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: e77f4846974bc9a4f8d3e01f6b2653c3
+timeCreated: 1556081593
+licenseType: Store
+DefaultImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 140739
+  packageName: Free Fly Camera
+  packageVersion: 1.2
+  assetPath: Assets/FreeFlyCamera/Documentation/FreeFlyCamera_en.pdf
+  uploadId: 396755

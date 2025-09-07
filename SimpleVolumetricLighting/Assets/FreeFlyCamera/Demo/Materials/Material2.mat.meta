@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 040a3537ac934fb4f802f61d64b1df96
+timeCreated: 1550135995
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 140739
+  packageName: Free Fly Camera
+  packageVersion: 1.2
+  assetPath: Assets/FreeFlyCamera/Demo/Materials/Material2.mat
+  uploadId: 396755
