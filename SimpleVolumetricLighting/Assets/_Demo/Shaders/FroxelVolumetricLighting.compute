@@ -70,22 +70,22 @@ void LightInjection(uint3 id : SV_DispatchThreadID)
     
     color += SpotLights(voxelPosition);
     
-    // TODO: Calculate Density
-    float density = 1;
+    // TODO: Calculate Extinction Coefficient
+    float extinctionCoefficient = 1;
     float intensity = 100;
     float4 result;
-    result.rgb = color * density * intensity;
-    result.a = density;
+    result.rgb = color * extinctionCoefficient * intensity;
+    result.a = extinctionCoefficient;
 
     _LightInjectionTexture[id] = result;
 }
 
-float4 ScatterStep(float3 accumulatedLight, float accumulatedTransmittance, float3 sliceLight, float sliceDensity)
+float4 ScatterStep(float3 accumulatedLight, float accumulatedTransmittance, float3 sliceLight, float sliceExtinctionCoefficient)
 {
     // TODO: Create LUT
-    sliceDensity = max(sliceDensity, 1e-6);
-    float sliceTransmittance = exp(-sliceDensity / _Resolution.z);
-    float3 sliceScatteredLight = sliceLight * (1.0 - sliceTransmittance) / sliceDensity;
+    sliceExtinctionCoefficient = max(sliceExtinctionCoefficient, 1e-6);
+    float sliceTransmittance = exp(-sliceExtinctionCoefficient / _Resolution.z);
+    float3 sliceScatteredLight = sliceLight * (1.0 - sliceTransmittance) / sliceExtinctionCoefficient;
     accumulatedLight += sliceScatteredLight * accumulatedTransmittance;
     accumulatedTransmittance *= sliceTransmittance;
     return float4(accumulatedLight, accumulatedTransmittance);
